@@ -1,16 +1,31 @@
 
 use failure::Error;
 use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
 use std::path::Path;
 
+/// Memory size
 const MEMORY_MAX : usize = 4096;
+
+/// Number of registers
 const REGISTERS_MAX : usize = 16;
+
+/// Graphics memory buffer size
 const GFX_MEMORY_MAX : usize = 64 * 32;
+
+/// Maximum stack size
 const STACK_MAX : usize = 16;
+
+/// Maximum number of keys
 const KEYPAD_MAX : usize = 16;
-const PROGRAM_START_ADDRESS : u8 = 0x200; 
+
+/// Start memory address of running program
+const PROGRAM_START_ADDRESS : u16 = 0x200;
+
+/// Register index used as carry
+const REGISTER_CARRY_FLAX_INDEX : usize = 0xF;
+
+/// Maximum value a register can hold
+const REGISTER_VALUE_MAX : u8 = 0xFF;
 
 pub struct Chip8 {
 
@@ -30,13 +45,13 @@ pub struct Chip8 {
     /// CPU registers: 
     /// The Chip 8 has 15 8-bit general purpose registers named V0,V1 up to VE. 
     /// The 16th register is used  for the ‘carry flag’. 
-    registers: [u8; REGISTERS_MAX],
+    V: [u8; REGISTERS_MAX],
 
     /// Index register I 
     index_register : u8,
 
     /// program counter (pc) which can have a value from 0x000 to 0xFFF
-    pc : u8,
+    pc : u16,
 
 
     /// The graphics system: The chip 8 has one instruction that draws sprite to the screen. 
@@ -78,7 +93,7 @@ impl Chip8 {
         Chip8 {
             opcode : 0,
             memory : [0;MEMORY_MAX],
-            registers: [0;REGISTERS_MAX],
+            V: [0;REGISTERS_MAX],
             index_register : 0,
             pc : 0x000,
             gfx : [0; GFX_MEMORY_MAX],
@@ -159,27 +174,57 @@ impl Chip8 {
         Ok(())
     }
 
+    /// Fetch opcode from memory using pc
     fn fetch_opcode(&self) -> u16 {
         ((self.memory[self.pc as usize] as u16) << 8)  | (self.memory[(self.pc + 1) as usize]) as u16
     }
+
+    /// set/unset carry flag
+    fn carry_flag(&mut self, flag: bool) {
+        self.V[REGISTER_CARRY_FLAX_INDEX] = flag as u8; //carry
+    }
+
+    /// Extract X component of current opcode
+    fn get_op_x(&self) -> usize {
+        ((self.opcode & 0x0F00) >> 8) as usize
+    }
+
+    /// Extract Y component of current opcode
+    fn get_op_y(&self) -> usize {
+        ((self.opcode & 0x00F0) >> 4) as usize
+    }
+
+    /// extract last 12 bits, commonly used are ref address in opcode
+    fn get_op_nnn(&self) -> u16 {
+        (self.opcode & (0x0FFF as u16))
+    }
+
+    /// 4 higher bits of current opcode
+    fn get_op_major(&self) -> u16 {
+        self.opcode & 0xF000
+    }
+
+    /// 4 lowest bits of current opcode
+    fn get_op_lower(&self) -> u16 {
+        self.opcode & (0x000F as u16)
+    }
+
     pub fn emulate_cycle(&mut self) {
         // Fetch opcode
         self.opcode = self.fetch_opcode();
 
         // Decode opcode
-        let op = self.opcode & 0xF000; // 4 higher bits are opcode id
-        
-        match op {    
+        match self.get_op_major() {    
             
              0xA000 => {
                // ANNN: Sets I to the address NNN
                 // Execute opcode
-                let operand = (self.opcode & (0x0FFF as u16)) as u8; // remaining 12 bits contains address
+                let operand = self.get_op_nnn() as u8; // remaining 12 bits contains address
                 self.index_register = operand;
                 self.pc += 2;  
              },
              0x0000 => { // 0x00E0 and 0x00EE both start with 0x0
-                 match self.opcode & (0x000F as u16) {
+                 match self.get_op_lower() {
                      0x0000 => {
                          // 0x00E0: Clears the screen 
                          unimplemented!();
@@ -193,7 +238,33 @@ impl Chip8 {
                     }
 
                  }
-             }
+             },
+             0x2000 => { //0x2NNN
+                self.stack[self.sp as usize] = self.pc;
+                self.sp += 1;
+                self.pc = self.opcode & 0x0FFF;
+             },
+             0x0004 => { //0x8XY4
+                let reg_x = self.get_op_x();
+                let reg_y = self.get_op_y();
+
+                if self.V[reg_y] > (REGISTER_VALUE_MAX - self.V[reg_x]) {
+                    self.carry_flag(true); //carry
+                } else {
+                    self.carry_flag(false);
+                }
+                self.V[reg_x] += self.V[reg_y];
+                self.pc += 2;          
+            },
+            0x0033 => { //0xFX33
+                let i_reg = self.index_register;
+                let reg_x = ((self.opcode & 0x0F00) >> 8) as usize;
+                self.memory[i_reg as usize]     = self.V[reg_x] / 100;
+                self.memory[(i_reg + 1) as usize] = (self.V[reg_x] / 10) % 10;
+                self.memory[(i_reg + 2) as usize] = (self.V[reg_x] % 100) % 10;
+                self.pc += 2;
+            }
+    
              // More opcodes //
         
             // not handled
