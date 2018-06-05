@@ -7,4 +7,4 @@ authors = ["Damien Castelltort <dcastelltort@gmail.com>"]
 serde_json = "1.0.19"
 serde = "1.0.66"
 quicli = "0.2.0"
-
+failure = "0.1.1"

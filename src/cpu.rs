@@ -1,4 +1,6 @@
 
+use failure::Error;
+use std::string;
 
 pub const MEMORY_MAX : usize = 4096;
 pub const REGISTERS_MAX : usize = 16;
@@ -40,6 +42,9 @@ pub struct Chip8 {
     /// This can easily be implemented using an array that hold the pixel state (1 or 0):
     gfx : [u8; GFX_MEMORY_MAX],
 
+    /// draw flag: set display needs updating
+    draw_flag : bool,
+
     /// Interrupts and hardware registers. The Chip 8 has none, but there are two timer registers that count 
     /// at 60 Hz. When set above zero they will count down to zero.
     /// Delay timer register
@@ -70,11 +75,72 @@ impl Chip8 {
             index_register : 0,
             pc : 0x000,
             gfx : [0; GFX_MEMORY_MAX],
+            draw_flag : false,
             delay_timer : 0,
             sound_timer : 0,
             stack : [0;STACK_MAX],
             sp : 0,
             keypad: [0;KEYPAD_MAX]
         }
+    }
+
+    fn setup_gfx(&mut self) {
+
+    }
+
+    fn setup_input(&mut self) {
+
+    }
+
+    fn initialize(&mut self) {
+
+    }
+
+    fn load_program(&mut self, rom_filename: &str) -> Result<(), Error> {
+        Ok(())
+    }
+    /// Boot the CHIP8 System
+    pub fn boot(&mut self, rom_filename : &str) -> Result<(), Error> {
+        // Set up render system and register input callbacks
+        self.setup_gfx();
+        self.setup_input();
+ 
+        // Initialize the Chip8 system and load the program into the memory  
+        self.initialize();
+        self.load_program(rom_filename)?;
+ 
+        Ok(())
+    }
+
+    pub fn emulate_cycle(&mut self) {
+
+    }
+
+    pub fn draw_graphics(&mut self) {
+
+    }
+
+    pub fn set_keys(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> Result<(), Error> {
+        // Emulation loop
+        loop
+        {
+            // Emulate one cycle
+            self.emulate_cycle();
+        
+            // If the draw flag is set, update the screen
+            if self.draw_flag {
+                self.draw_graphics();
+            }
+            
+        
+            // Store key press state (Press and Release)
+            self.set_keys()?;	
+        } 
+
+        Ok(())
     }
 }
