@@ -1,0 +1,10 @@
+[package]
+name = "rusty-chip8"
+version = "0.1.0"
+authors = ["Damien Castelltort <dcastelltort@gmail.com>"]
+
+[dependencies]
+serde_json = "1.0.19"
+serde = "1.0.66"
+quicli = "0.2.0"
+
