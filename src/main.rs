@@ -1,4 +1,6 @@
 
+#![feature(fs_read_write)] //TO REMOVE with ugraded nightly or stable
+
 #[macro_use] extern crate failure;
 
 pub mod cpu;

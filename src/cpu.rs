@@ -1,17 +1,21 @@
 
 use failure::Error;
-use std::string;
+use std::fs;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 
-pub const MEMORY_MAX : usize = 4096;
-pub const REGISTERS_MAX : usize = 16;
-pub const GFX_MEMORY_MAX : usize = 64 * 32;
-pub const STACK_MAX : usize = 16;
-pub const KEYPAD_MAX : usize = 16;
+const MEMORY_MAX : usize = 4096;
+const REGISTERS_MAX : usize = 16;
+const GFX_MEMORY_MAX : usize = 64 * 32;
+const STACK_MAX : usize = 16;
+const KEYPAD_MAX : usize = 16;
+const PROGRAM_START_ADDRESS : u8 = 0x200; 
 
 pub struct Chip8 {
 
-    ///The Chip 8 has 35 opcodes which are all two bytes long. 
-    /// To store the current opcode
+    /// stores the current opcode
+    /// The Chip 8 has 35 opcodes which are all two bytes long. 
     opcode: u16,
     
     /// The Chip 8 has 4K memory in total
@@ -43,6 +47,9 @@ pub struct Chip8 {
     gfx : [u8; GFX_MEMORY_MAX],
 
     /// draw flag: set display needs updating
+    /// Only two opcodes should set this flag:
+    /// 0x00E0 – Clears the screen
+    /// 0xDXYN – Draws a sprite on the screen
     draw_flag : bool,
 
     /// Interrupts and hardware registers. The Chip 8 has none, but there are two timer registers that count 
@@ -93,10 +100,50 @@ impl Chip8 {
     }
 
     fn initialize(&mut self) {
+        self.pc             =  PROGRAM_START_ADDRESS;   // Program counter starts at 0x200
+        self.opcode         = 0;                        // Reset current opcode	
+        self.index_register = 0;                        // Reset index register
+        self.sp             = 0;                        // Reset stack pointer
+        
+        // Clear display
+        unimplemented!();
 
+        // Clear stack
+        unimplemented!();
+
+        // Clear registers V0-VF
+        unimplemented!();
+        
+        // Clear memory
+        unimplemented!();
+
+        // Load fontset
+        self.load_fontset_in_memory();
+    
+        // Reset timers
+        unimplemented!();
     }
 
+    fn load_fontset_in_memory(&mut self) {
+        /*
+        for(int i = 0; i < 80; ++i)
+            memory[i] = chip8_fontset[i];		
+        */
+        unimplemented!();
+    }
     fn load_program(&mut self, rom_filename: &str) -> Result<(), Error> {
+    
+        // Create a path to the desired file
+        let path = Path::new(rom_filename);
+        
+        // load program
+        let buffer = fs::read(&path)?;
+
+        // write program in CHIP8 memory
+        for (i, byte) in buffer.iter().enumerate() {
+            self.memory[ PROGRAM_START_ADDRESS as usize + i as usize ] = *byte;
+        }
+        
         Ok(())
     }
     /// Boot the CHIP8 System
@@ -112,15 +159,71 @@ impl Chip8 {
         Ok(())
     }
 
+    fn fetch_opcode(&self) -> u16 {
+        ((self.memory[self.pc as usize] as u16) << 8)  | (self.memory[(self.pc + 1) as usize]) as u16
+    }
     pub fn emulate_cycle(&mut self) {
+        // Fetch opcode
+        self.opcode = self.fetch_opcode();
 
+        // Decode opcode
+        let op = self.opcode & 0xF000; // 4 higher bits are opcode id
+        
+        match op {    
+            
+             0xA000 => {
+               // ANNN: Sets I to the address NNN
+                // Execute opcode
+                let operand = (self.opcode & (0x0FFF as u16)) as u8; // remaining 12 bits contains address
+                self.index_register = operand;
+                self.pc += 2;  
+             },
+             0x0000 => { // 0x00E0 and 0x00EE both start with 0x0
+                 match self.opcode & (0x000F as u16) {
+                     0x0000 => {
+                         // 0x00E0: Clears the screen 
+                         unimplemented!();
+                     },
+                     0x000E => { // 0x00EE: Returns from subroutine
+                        unimplemented!();
+                     },
+                     _ => {
+                        println!("Unknown opcode: {:?}", self.opcode);
+                        panic!();
+                    }
+
+                 }
+             }
+             // More opcodes //
+        
+            // not handled
+             _ => {
+                println!("Unknown opcode: {:?}", self.opcode);
+                panic!();
+             }
+            
+        }  
+        
+        // Update timers
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+            
+        if(self.sound_timer > 0)
+        {
+            if self.sound_timer == 1 {
+                 println!("BEEP!");
+            }
+            self.sound_timer -= 1;
+        }  
     }
 
     pub fn draw_graphics(&mut self) {
-
+        unimplemented!();
     }
 
     pub fn set_keys(&mut self) -> Result<(), Error> {
+        unimplemented!();
         Ok(())
     }
 
